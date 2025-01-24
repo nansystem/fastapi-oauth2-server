@@ -6,28 +6,40 @@ on:
   pull_request:
     branches: ["main"]
 
-jobs:
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v4
-      with:
-        python-version: "3.11"
-    - name: Install dependencies
-      run: pip install -r requirements.txt
-    - name: Lint wiPth Ruff
-      run: ruff check --fix .
+env:
+  PYTHON_VERSION: "3.11"
 
-  test:
+jobs:
+  client-app:
+    name: Client App
     runs-on: ubuntu-latest
-    needs: lint
+    defaults:
+      run:
+        working-directory: ./client-app
     steps:
     - uses: actions/checkout@v4
-    - uses: actions/setup-python@v4
+
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v4
       with:
-        python-version: "3.11"
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install Poetry
+      run: pipx install poetry
+
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ./client-app/.venv
+          ~/.cache/pypoetry
+        key: client-app-${{ hashFiles('client-app/poetry.lock') }}
+
     - name: Install dependencies
-      run: pip install -r requirements.txt
+      run: poetry install --no-root
+
+    - name: Lint with Ruff
+      run: poetry run ruff check .
+
     - name: Run tests
-      run: pytest -v
+      run: poetry run pytest -v
