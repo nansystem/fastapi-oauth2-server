@@ -33,6 +33,13 @@ async def show_login_page(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
 
 
+@app.get("/dashboard", response_class=HTMLResponse)
+async def show_dashboard(request: Request):
+    if "user" not in request.session:
+        return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+    return templates.TemplateResponse("dashboard.html", {"request": request})
+
+
 @app.post("/login")
 async def handle_login(
     request: Request,
@@ -87,3 +94,16 @@ async def handle_register(
     db.commit()
 
     return RedirectResponse(url="/", status_code=303)
+
+
+@app.get("/logout")
+async def logout(request: Request):
+    # セッションデータを完全に削除
+    request.session.clear()
+    # ログインページへリダイレクト
+    return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@app.get("/session-check")
+async def session_check(request: Request):
+    return {"session": dict(request.session)}
