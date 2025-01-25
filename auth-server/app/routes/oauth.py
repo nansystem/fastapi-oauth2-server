@@ -24,31 +24,23 @@ async def authorize(
 ):
     user = request.session.get("user")
     if not user:
-        # ログイン後に戻ってくるためのoauth_state値を生成・保存
-        request.session["oauth_state"] = {
-            "response_type": response_type,
-            "client_id": client_id,
-            "redirect_uri": redirect_uri,
-            "state": state,
-            "scope": scope,
-        }
         return RedirectResponse("/login?next=/oauth/authorize", status_code=303)
 
     if client_id not in settings.CLIENTS:
         return RedirectResponse(
-            f"{redirect_uri}?error=unauthorized_client&state={state}",
+            f"{redirect_uri}?error=unauthorized_client",
             status_code=303,
         )
 
     if redirect_uri != settings.CLIENTS[client_id]["redirect_uri"]:
         return RedirectResponse(
-            f"{redirect_uri}?error=invalid_redirect_uri&state={state}",
+            f"{redirect_uri}?error=invalid_redirect_uri",
             status_code=303,
         )
 
     if response_type != "code":
         return RedirectResponse(
-            f"{redirect_uri}?error=unsupported_response_type&state={state}",
+            f"{redirect_uri}?error=unsupported_response_type",
             status_code=303,
         )
 
@@ -56,7 +48,7 @@ async def authorize(
     invalid_scopes = requested_scopes - settings.AVAILABLE_SCOPES
     if invalid_scopes:
         return RedirectResponse(
-            f"{redirect_uri}?error=invalid_scope&error_description=Unsupported+scopes:{'+'.join(invalid_scopes)}&state={state}",
+            f"{redirect_uri}?error=invalid_scope&error_description=Unsupported+scopes:{'+'.join(invalid_scopes)}",
             status_code=303,
         )
 
@@ -64,9 +56,18 @@ async def authorize(
     unauthorized_scopes = requested_scopes - client_allowed_scopes
     if unauthorized_scopes:
         return RedirectResponse(
-            f"{redirect_uri}?error=insufficient_scope&error_description=Client+not+authorized+for+scopes:{'+'.join(unauthorized_scopes)}&state={state}",
+            f"{redirect_uri}?error=insufficient_scope&error_description=Client+not+authorized+for+scopes:{'+'.join(unauthorized_scopes)}",
             status_code=303,
         )
+
+    # OAuth認可フローの状態を保存
+    request.session["oauth_state"] = {
+        "response_type": response_type,
+        "client_id": client_id,
+        "redirect_uri": redirect_uri,
+        "state": state,
+        "scope": scope,
+    }
 
     csrf_token = generate_csrf_token()
     request.session["csrf_token"] = csrf_token
@@ -76,11 +77,7 @@ async def authorize(
         {
             "request": request,
             "csrf_token": csrf_token,
-            "client_id": client_id,
-            "redirect_uri": redirect_uri,
-            "response_type": response_type,
-            "state": state,
-            "scope": scope,
+            "scope": scope,  # 同意画面での表示用にscopeのみ渡す
         },
     )
 
@@ -89,21 +86,25 @@ async def authorize(
 async def authorize_action(
     request: Request,
     csrf_token: str = Form(...),
-    client_id: str = Form(...),
-    redirect_uri: str = Form(...),
     action: str = Form(...),
-    state: str = Form(None),
-    scope: str = Form(...),
 ):
     if not verify_csrf_token(csrf_token, request.session["csrf_token"]):
         raise HTTPException(status_code=400, detail="Invalid CSRF token")
 
     request.session.pop("csrf_token", None)
 
+    # セッションからOAuth状態を取得
+    oauth_state = request.session.get("oauth_state", {})
+    client_id = oauth_state.get("client_id")
+    redirect_uri = oauth_state.get("redirect_uri")
+    scope = oauth_state.get("scope")
+    state = oauth_state.get("state")
+
+    if not all([client_id, redirect_uri, scope]):
+        raise HTTPException(status_code=400, detail="Invalid OAuth state")
+
     if action != "allow":
         params = {"error": "access_denied"}
-        if state:
-            params["state"] = state
         return RedirectResponse(f"{redirect_uri}?{urlencode(params)}", status_code=303)
 
     # 認可コード生成
@@ -117,6 +118,10 @@ async def authorize_action(
     params = {"code": code}
     if state:
         params["state"] = state
+
+    # OAuth状態をクリア
+    request.session.pop("oauth_state", None)
+
     return RedirectResponse(
         f"{redirect_uri}?{urlencode(params)}",
         status_code=303,

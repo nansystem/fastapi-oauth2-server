@@ -21,16 +21,9 @@
 
     <form method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <input type="hidden" name="client_id" value="{{ client_id }}">
-        <input type="hidden" name="redirect_uri" value="{{ redirect_uri }}">
-        <input type="hidden" name="response_type" value="{{ response_type }}">
-        <input type="hidden" name="state" value="{{ state }}">
-        <input type="hidden" name="scope" value="{{ scope }}">
-
         <div class="space-x-4">
             <button type="submit" name="action" value="deny" class="bg-gray-200 px-4 py-2 rounded">拒否</button>
-            <button type="submit" name="action" value="allow"
-                class="bg-blue-500 text-white px-4 py-2 rounded">許可</button>
+            <button type="submit" name="action" value="allow" class="bg-blue-500 text-white px-4 py-2 rounded">許可</button>
         </div>
     </form>
 </div>
