@@ -1,10 +1,22 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
-from app.routes import auth
+from app.routes import oauth, auth
 from app.core.config import settings
 
 app = FastAPI()
 
+allowed_origins = [client["uri"] for client in settings.CLIENTS.values()]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,  # 全てのクライアントのURIを許可
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# セッションミドルウェアの設定
 app.add_middleware(
     SessionMiddleware,
     secret_key=settings.SECRET_KEY,
@@ -15,3 +27,4 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
+app.include_router(oauth.router)
