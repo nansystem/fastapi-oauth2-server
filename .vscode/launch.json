@@ -2,12 +2,14 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: FastAPI",
+            "name": "client-app",
             "type": "debugpy",
             "request": "launch",
             "module": "uvicorn",
             "args": [
                 "app.main:app",
+                "--port",
+                "8001",
                 "--reload"
             ],
             "jinja": true,
@@ -16,6 +18,24 @@
                 "PYTHONPATH": "${workspaceFolder}/client-app"
             },
             "cwd": "${workspaceFolder}/client-app"
+        },
+        {
+            "name": "auth-server",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "app.main:app",
+                "--port",
+                "8000",
+                "--reload"
+            ],
+            "jinja": true,
+            "justMyCode": true,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/auth-server"
+            },
+            "cwd": "${workspaceFolder}/auth-server"
         }
     ]
 }
