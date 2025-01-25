@@ -7,6 +7,7 @@ from app.database import get_db
 from app.models.user import User
 from urllib.parse import urlencode
 from app.core.templates import templates
+from app.core.security import generate_csrf_token, verify_csrf_token
 import httpx
 
 router = APIRouter(prefix="/oauth", tags=["OAuth認証"])
@@ -67,10 +68,14 @@ async def authorize(
             status_code=303,
         )
 
+    csrf_token = generate_csrf_token()
+    request.session["csrf_token"] = csrf_token
+
     return templates.TemplateResponse(
         "consent.html",
         {
             "request": request,
+            "csrf_token": csrf_token,
             "client_id": client_id,
             "redirect_uri": redirect_uri,
             "response_type": response_type,
@@ -83,12 +88,18 @@ async def authorize(
 @router.post("/authorize")
 async def authorize_action(
     request: Request,
+    csrf_token: str = Form(...),
     client_id: str = Form(...),
     redirect_uri: str = Form(...),
     action: str = Form(...),
     state: str = Form(None),
     scope: str = Form(...),
 ):
+    if not verify_csrf_token(csrf_token, request.session["csrf_token"]):
+        raise HTTPException(status_code=400, detail="Invalid CSRF token")
+
+    request.session.pop("csrf_token", None)
+
     if action != "allow":
         params = {"error": "access_denied"}
         if state:
