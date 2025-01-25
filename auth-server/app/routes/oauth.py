@@ -101,10 +101,18 @@ async def authorize_action(
     state = oauth_state.get("state")
 
     if not all([client_id, redirect_uri, scope]):
+        request.session.pop("oauth_state", None)
         raise HTTPException(status_code=400, detail="Invalid OAuth state")
 
+    request.session.pop("oauth_state", None)
+
     if action != "allow":
-        params = {"error": "access_denied"}
+        params = {
+            "error": "access_denied",
+            "error_description": "アプリケーションの認可が拒否されました",
+        }
+        if state:
+            params["state"] = state
         return RedirectResponse(f"{redirect_uri}?{urlencode(params)}", status_code=303)
 
     # 認可コード生成
@@ -118,9 +126,6 @@ async def authorize_action(
     params = {"code": code}
     if state:
         params["state"] = state
-
-    # OAuth状態をクリア
-    request.session.pop("oauth_state", None)
 
     return RedirectResponse(
         f"{redirect_uri}?{urlencode(params)}",
