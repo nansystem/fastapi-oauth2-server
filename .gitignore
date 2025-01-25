@@ -48,3 +48,4 @@ env/
 .mypy_cache/
 
 test.db
+auth.db
