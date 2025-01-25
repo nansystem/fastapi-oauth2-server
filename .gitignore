@@ -47,5 +47,5 @@ env/
 .pytest_cache/
 .mypy_cache/
 
-test.db
+client.db
 auth.db

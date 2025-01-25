@@ -16,7 +16,7 @@ templates = Jinja2Templates(directory="app/templates")
 # ログインページ
 @router.get("/login")
 async def login_page(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request})
+    return templates.TemplateResponse(request, "login.html")
 
 
 # OAuth2.0認証フロー
@@ -46,8 +46,9 @@ async def oauth_callback(
     stored_state = request.session.pop("oauth_state", None)
     if not stored_state or stored_state != state:
         return templates.TemplateResponse(
-            "error.html",
-            {
+            request=request,
+            name="error.html",
+            context={
                 "request": request,
                 "error": "不正なリクエスト",
                 "message": "CSRF検証に失敗しました",
@@ -56,13 +57,16 @@ async def oauth_callback(
 
     if error:
         return templates.TemplateResponse(
-            "error.html", {"request": request, "error": "認可エラー", "message": error}
+            request=request,
+            name="error.html",
+            context={"request": request, "error": "認可エラー", "message": error},
         )
 
     if not code:
         return templates.TemplateResponse(
-            "error.html",
-            {
+            request=request,
+            name="error.html",
+            context={
                 "request": request,
                 "error": "認可コードがありません",
                 "message": "認可サーバーからの応答が不正です",
@@ -132,8 +136,9 @@ async def oauth_callback(
             else:
                 # 新規ユーザー登録が必要
                 return templates.TemplateResponse(
-                    "register.html",
-                    {
+                    request=request,
+                    name="register.html",
+                    context={
                         "request": request,
                         "oauth_provider": "auth_server",
                         "oauth_sub": user_data["sub"],
@@ -146,8 +151,9 @@ async def oauth_callback(
             return RedirectResponse("/")
         except Exception as e:
             return templates.TemplateResponse(
-                "error.html",
-                {
+                request=request,
+                name="error.html",
+                context={
                     "request": request,
                     "error": "トークン処理に失敗しました",
                     "message": str(e),
@@ -158,7 +164,7 @@ async def oauth_callback(
 # ユーザー登録
 @router.get("/register")
 async def register_page(request: Request):
-    return templates.TemplateResponse("register.html", {"request": request})
+    return templates.TemplateResponse(request, "register.html")
 
 
 @router.post("/register")
@@ -177,8 +183,9 @@ async def register(
         if email:
             if db.query(User).filter(User.email == email).first():
                 return templates.TemplateResponse(
-                    "register.html",
-                    {
+                    request=request,
+                    name="register.html",
+                    context={
                         "request": request,
                         "error": "このメールアドレスは既に使用されています",
                     },
@@ -188,8 +195,9 @@ async def register(
         # ユーザー名の重複チェック
         if db.query(User).filter(User.username == display_name).first():
             return templates.TemplateResponse(
-                "register.html",
-                {
+                request=request,
+                name="register.html",
+                context={
                     "request": request,
                     "error": "この表示名は既に使用されています",
                     # OAuth情報がある場合は保持
@@ -229,8 +237,9 @@ async def register(
         print(f"エラーが発生しました: {str(e)}")
         db.rollback()
         return templates.TemplateResponse(
-            "register.html",
-            {
+            request=request,
+            name="register.html",
+            context={
                 "request": request,
                 "error": "登録に失敗しました。もう一度お試しください。",
                 # OAuth情報がある場合は保持
