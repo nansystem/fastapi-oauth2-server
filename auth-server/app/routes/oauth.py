@@ -7,8 +7,9 @@ from app.database import get_db
 from app.models.user import User
 from urllib.parse import urlencode
 from app.core.templates import templates
+import httpx
 
-router = APIRouter(prefix="/oauth")
+router = APIRouter(prefix="/oauth", tags=["OAuth認証"])
 
 
 @router.get("/authorize")
@@ -147,3 +148,68 @@ async def userinfo_endpoint(request: Request, db: Session = Depends(get_db)):
         return response_data
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e))
+
+
+@router.get("/callback")
+async def oauth_callback(
+    request: Request, error: str = None, code: str = None, db: Session = Depends(get_db)
+):
+    if error == "access_denied":
+        return templates.TemplateResponse(
+            "error.html",
+            {
+                "request": request,
+                "error": "アプリケーションの認可が拒否されました",
+                "message": "サービスを利用するには認可を許可する必要があります",
+            },
+        )
+
+    if not code:
+        raise HTTPException(status_code=400, detail="Authorization code is required")
+
+    async with httpx.AsyncClient() as client:
+        token_response = await client.post(
+            "http://localhost:8000/oauth/token",
+            data={
+                "client_id": "client123",
+                "client_secret": "client-secret",
+                "code": code,
+                "redirect_uri": "http://localhost:8001/callback",
+            },
+        )
+
+        if token_response.status_code != 200:
+            raise HTTPException(status_code=400, detail="Token exchange failed")
+
+        token_data = token_response.json()
+        access_token = token_data["access_token"]
+
+        user_response = await client.get(
+            "http://localhost:8000/oauth/userinfo",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+
+        if user_response.status_code != 200:
+            raise HTTPException(status_code=400, detail="Failed to get user info")
+
+        user_data = user_response.json()
+
+        user = (
+            db.query(User)
+            .filter(User.auth_server_user_id == str(user_data["user_id"]))
+            .first()
+        )
+
+        if not user:
+            return templates.TemplateResponse(
+                "register.html",
+                {
+                    "request": request,
+                    "auth_server_user_id": user_data["user_id"],
+                    "auth_server_username": user_data["username"],
+                },
+            )
+
+        request.session["user"] = {"id": user.id, "username": user.username}
+
+        return RedirectResponse("/")
