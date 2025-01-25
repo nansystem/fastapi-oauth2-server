@@ -4,6 +4,7 @@ from app.scripts.create_test_users import create_test_users
 
 def init_db():
     print("データベース初期化開始")
+    Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     print("テーブル作成完了")
 

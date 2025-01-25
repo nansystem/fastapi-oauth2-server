@@ -5,6 +5,7 @@ from app.database import get_db
 from app.models.user import User
 from app.core.security import get_password_hash, verify_password
 from app.core.templates import templates
+from urllib.parse import urlencode
 
 # 通常の認証用ルーター
 router = APIRouter(tags=["認証"])
@@ -17,10 +18,12 @@ async def index(request: Request):
     )
 
 
-# 通常のログイン/登録関連
 @router.get("/login")
 async def login_page(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request})
+    return templates.TemplateResponse(
+        "login.html",
+        {"request": request, "next": request.query_params.get("next", "/")},
+    )
 
 
 @router.post("/login")
@@ -28,6 +31,7 @@ async def login(
     request: Request,
     username: str = Form(...),
     password: str = Form(...),
+    next: str = Form("/"),
     db: Session = Depends(get_db),
 ):
     user = db.query(User).filter(User.username == username).first()
@@ -43,8 +47,22 @@ async def login(
 
     request.session["user"] = {"id": user.id, "username": user.username}
 
-    next_url = request.query_params.get("next", "/")
-    return RedirectResponse(next_url, status_code=303)
+    # OAuth状態のチェックとリダイレクト処理
+    if "oauth_state" in request.session:
+        oauth_state = request.session.pop("oauth_state")
+        query_params = {
+            "response_type": oauth_state["response_type"],
+            "client_id": oauth_state["client_id"],
+            "redirect_uri": oauth_state["redirect_uri"],
+            "scope": oauth_state["scope"],
+        }
+        if oauth_state.get("state"):
+            query_params["state"] = oauth_state["state"]
+
+        redirect_url = f"/oauth/authorize?{urlencode(query_params)}"
+        return RedirectResponse(redirect_url, status_code=303)
+
+    return RedirectResponse(next, status_code=303)
 
 
 @router.get("/register")
@@ -72,7 +90,6 @@ async def register(
     db.refresh(user)
 
     request.session["user"] = {"id": user.id, "username": user.username}
-
     next_url = request.query_params.get("next", "/")
     return RedirectResponse(next_url, status_code=303)
 

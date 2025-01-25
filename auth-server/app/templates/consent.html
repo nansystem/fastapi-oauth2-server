@@ -6,14 +6,14 @@
 
     <p class="mb-4">以下の権限へのアクセスを許可しますか？</p>
     <ul class="mb-4">
-        {% for scope in requested_scopes %}
+        {% for s in scope.split(" ") %}
         <li>
-            {% if scope == "profile" %}
+            {% if s == "profile" %}
             ・プロフィール情報
-            {% elif scope == "email" %}
+            {% elif s == "email" %}
             ・メールアドレス
             {% else %}
-            ・{{ scope }}
+            ・{{ s }}
             {% endif %}
         </li>
         {% endfor %}

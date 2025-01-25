@@ -24,7 +24,7 @@ class OAuthService:
     @classmethod
     def exchange_code_for_token(
         cls, code: str, client_id: str, redirect_uri: str
-    ) -> str:
+    ) -> dict:
         # 認可コードの検証
         code_data = cls._auth_codes.get(code)
         if not code_data:
@@ -38,16 +38,25 @@ class OAuthService:
 
         # アクセストークン生成
         token = secrets.token_urlsafe(32)
+        expires_at = datetime.now() + timedelta(hours=1)
+
+        # トークンデータの保存
         cls._tokens[token] = {
             "client_id": client_id,
             "user_id": code_data["user_id"],
             "scope": code_data["scope"],
-            "expires_at": datetime.now() + timedelta(hours=1),
+            "expires_at": expires_at,
         }
 
         # 使用済みの認可コードを削除
         del cls._auth_codes[code]
-        return token
+
+        return {
+            "access_token": token,
+            "token_type": "Bearer",
+            "expires_in": 3600,
+            "scope": code_data["scope"],
+        }
 
     @classmethod
     def validate_token(cls, token: str, required_scope: str = None) -> dict:

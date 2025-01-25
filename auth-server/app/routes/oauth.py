@@ -23,7 +23,27 @@ async def authorize(
 ):
     user = request.session.get("user")
     if not user:
+        # ログイン後に戻ってくるためのoauth_state値を生成・保存
+        request.session["oauth_state"] = {
+            "response_type": response_type,
+            "client_id": client_id,
+            "redirect_uri": redirect_uri,
+            "state": state,
+            "scope": scope,
+        }
         return RedirectResponse("/login?next=/oauth/authorize", status_code=303)
+
+    if client_id not in settings.CLIENTS:
+        return RedirectResponse(
+            f"{redirect_uri}?error=unauthorized_client&state={state}",
+            status_code=303,
+        )
+
+    if redirect_uri != settings.CLIENTS[client_id]["redirect_uri"]:
+        return RedirectResponse(
+            f"{redirect_uri}?error=invalid_redirect_uri&state={state}",
+            status_code=303,
+        )
 
     if response_type != "code":
         return RedirectResponse(
@@ -31,19 +51,7 @@ async def authorize(
             status_code=303,
         )
 
-    if client_id not in settings.CLIENTS:
-        return RedirectResponse(
-            f"{redirect_uri}?error=unauthorized_client&state={state}", status_code=303
-        )
-
-    if redirect_uri != settings.CLIENTS[client_id]["redirect_uri"]:
-        return RedirectResponse(
-            f"{redirect_uri}?error=invalid_redirect_uri&state={state}", status_code=303
-        )
-
     requested_scopes = set(scope.split())
-
-    # 1. 要求されたスコープが有効なスコープか確認
     invalid_scopes = requested_scopes - settings.AVAILABLE_SCOPES
     if invalid_scopes:
         return RedirectResponse(
@@ -51,7 +59,6 @@ async def authorize(
             status_code=303,
         )
 
-    # 2. クライアントに許可されたスコープか確認
     client_allowed_scopes = set(settings.CLIENTS[client_id]["allowed_scopes"])
     unauthorized_scopes = requested_scopes - client_allowed_scopes
     if unauthorized_scopes:
@@ -60,7 +67,6 @@ async def authorize(
             status_code=303,
         )
 
-    # 同意画面の表示
     return templates.TemplateResponse(
         "consent.html",
         {
@@ -69,7 +75,7 @@ async def authorize(
             "redirect_uri": redirect_uri,
             "response_type": response_type,
             "state": state,
-            "requested_scopes": requested_scopes,
+            "scope": scope,
         },
     )
 
@@ -81,9 +87,9 @@ async def authorize_action(
     redirect_uri: str = Form(...),
     action: str = Form(...),
     state: str = Form(None),
+    scope: str = Form(...),
 ):
     if action != "allow":
-        # ユーザーが拒否した場合
         params = {"error": "access_denied"}
         if state:
             params["state"] = state
@@ -94,34 +100,41 @@ async def authorize_action(
         client_id=client_id,
         user_id=request.session["user"]["id"],
         redirect_uri=redirect_uri,
+        scope=scope,
     )
 
     params = {"code": code}
     if state:
         params["state"] = state
-    return RedirectResponse(f"{redirect_uri}?{urlencode(params)}")
+    return RedirectResponse(
+        f"{redirect_uri}?{urlencode(params)}",
+        status_code=303,
+    )
 
 
 @router.post("/token")
-async def token_endpoint(
-    request: Request,
+async def token(
     client_id: str = Form(...),
     client_secret: str = Form(...),
     code: str = Form(...),
     redirect_uri: str = Form(...),
+    grant_type: str = Form(...),
 ):
     # クライアント認証
     if (
         client_id not in settings.CLIENTS
-        or settings.CLIENTS[client_id]["secret"] != client_secret
+        or client_secret != settings.CLIENTS[client_id]["client_secret"]
     ):
-        raise HTTPException(status_code=401, detail="Invalid client credentials")
+        raise HTTPException(status_code=401, detail="Invalid client authentication")
 
+    if grant_type != "authorization_code":
+        raise HTTPException(status_code=400, detail="Unsupported grant type")
+
+    # 認可コードの検証とトークンの生成
     try:
-        token = OAuthService.exchange_code_for_token(
+        return OAuthService.exchange_code_for_token(
             code=code, client_id=client_id, redirect_uri=redirect_uri
         )
-        return {"access_token": token, "token_type": "bearer", "expires_in": 3600}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -134,16 +147,24 @@ async def userinfo_endpoint(request: Request, db: Session = Depends(get_db)):
 
     token = auth_header.split(" ")[1]
     try:
-        # profileスコープの検証を追加
+        # profileスコープの検証
         token_data = OAuthService.validate_token(token, required_scope="profile")
         user = db.query(User).filter(User.id == token_data["user_id"]).first()
 
-        response_data = {"user_id": user.id, "username": user.username}
+        # OpenID Connect
+        response_data = {
+            "sub": user.sub,
+            "name": user.username,
+            "preferred_username": user.username,
+            "updated_at": int(user.updated_at.timestamp()),
+        }
 
-        # emailスコープがある場合のみメールアドレスを含める
+        # emailスコープがある場合
         token_scopes = set(token_data["scope"].split())
-        if "email" in token_scopes:
-            response_data["email"] = user.email
+        if "email" in token_scopes and user.email:
+            response_data.update(
+                {"email": user.email, "email_verified": user.email_verified}
+            )
 
         return response_data
     except ValueError as e:
@@ -152,7 +173,10 @@ async def userinfo_endpoint(request: Request, db: Session = Depends(get_db)):
 
 @router.get("/callback")
 async def oauth_callback(
-    request: Request, error: str = None, code: str = None, db: Session = Depends(get_db)
+    request: Request,
+    error: str = None,
+    code: str = None,
+    state: str = None,
 ):
     if error == "access_denied":
         return templates.TemplateResponse(
@@ -167,49 +191,33 @@ async def oauth_callback(
     if not code:
         raise HTTPException(status_code=400, detail="Authorization code is required")
 
+    # クライアントアプリのコールバックURLを取得
+    client_id = request.session.get("oauth_client_id")
+    if not client_id or client_id not in settings.CLIENTS:
+        raise HTTPException(status_code=400, detail="Invalid client")
+
+    client_redirect_uri = settings.CLIENTS[client_id]["redirect_uri"]
+
     async with httpx.AsyncClient() as client:
         token_response = await client.post(
-            "http://localhost:8000/oauth/token",
+            f"{settings.AUTH_SERVER_URL}/oauth/token",
             data={
-                "client_id": "client123",
-                "client_secret": "client-secret",
+                "client_id": client_id,
+                "client_secret": settings.CLIENTS[client_id]["client_secret"],
                 "code": code,
-                "redirect_uri": "http://localhost:8001/callback",
+                "redirect_uri": client_redirect_uri,
+                "grant_type": "authorization_code",
             },
         )
 
         if token_response.status_code != 200:
-            raise HTTPException(status_code=400, detail="Token exchange failed")
-
-        token_data = token_response.json()
-        access_token = token_data["access_token"]
-
-        user_response = await client.get(
-            "http://localhost:8000/oauth/userinfo",
-            headers={"Authorization": f"Bearer {access_token}"},
-        )
-
-        if user_response.status_code != 200:
-            raise HTTPException(status_code=400, detail="Failed to get user info")
-
-        user_data = user_response.json()
-
-        user = (
-            db.query(User)
-            .filter(User.auth_server_user_id == str(user_data["user_id"]))
-            .first()
-        )
-
-        if not user:
-            return templates.TemplateResponse(
-                "register.html",
-                {
-                    "request": request,
-                    "auth_server_user_id": user_data["user_id"],
-                    "auth_server_username": user_data["username"],
-                },
+            # エラーの場合はクライアントアプリにエラーを返す
+            return RedirectResponse(
+                f"{client_redirect_uri}?error=invalid_grant&state={state}",
+                status_code=303,
             )
 
-        request.session["user"] = {"id": user.id, "username": user.username}
-
-        return RedirectResponse("/")
+        # 成功した場合はクライアントアプリにコードを返す
+        return RedirectResponse(
+            f"{client_redirect_uri}?code={code}&state={state}", status_code=303
+        )

@@ -18,8 +18,8 @@ class Settings(BaseSettings):
         "client123": {
             "name": "Client App",
             "uri": "http://localhost:8001",
-            "secret": "client-secret",
-            "redirect_uri": "http://localhost:8001/callback",
+            "client_secret": "client-secret",
+            "redirect_uri": "http://localhost:8001/auth/callback",
             "allowed_scopes": [
                 "profile",
                 "email",
