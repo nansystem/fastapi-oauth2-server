@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Auth Server - Authorize</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="p-8">
+    <h1 class="text-2xl font-bold mb-4">アプリケーションの認可</h1>
+
+    <div class="mb-4">
+        <p><strong>{{ client_name }}</strong> が以下の情報へのアクセスを要求しています：</p>
+        <ul class="list-disc ml-8 my-4">
+            <li>ユーザーID</li>
+            <li>ユーザー名</li>
+        </ul>
+    </div>
+
+    <form action="/oauth/authorize" method="post">
+        <input type="hidden" name="client_id" value="{{ client_id }}">
+        <input type="hidden" name="redirect_uri" value="{{ redirect_uri }}">
+        <input type="hidden" name="response_type" value="{{ response_type }}">
+        {% if state %}
+        <input type="hidden" name="state" value="{{ state }}">
+        {% endif %}
+        <button type="submit" name="action" value="allow" class="bg-green-500 text-white px-4 py-2 mr-2">許可する</button>
+        <button type="submit" name="action" value="deny" class="bg-red-500 text-white px-4 py-2">拒否する</button>
+    </form>
+</body>
+
+</html>
