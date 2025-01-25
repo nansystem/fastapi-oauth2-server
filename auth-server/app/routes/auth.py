@@ -1,13 +1,12 @@
-from fastapi import APIRouter, Request, Form, HTTPException, Depends
+from fastapi import APIRouter, Request, Form, Depends, HTTPException
 from fastapi.responses import RedirectResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
 from app.core.security import verify_password, get_password_hash
+from app.core.templates import templates
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
 
 @router.get("/")
 async def index(request: Request):
@@ -31,7 +30,7 @@ async def login(
     request: Request,
     username: str = Form(...),
     password: str = Form(...),
-    next: str = Form(None),
+    next: str = Form(default="/"),
     db: Session = Depends(get_db)
 ):
     user = db.query(User).filter(User.username == username).first()
@@ -51,7 +50,8 @@ async def login(
         "username": user.username
     }
     
-    return RedirectResponse(next or "/", status_code=303)
+    redirect_url = next if next and next.strip() and next != 'None' else "/"
+    return RedirectResponse(redirect_url, status_code=303)
 
 @router.get("/register")
 async def register_page(request: Request):
