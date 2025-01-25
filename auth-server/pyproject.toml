@@ -36,6 +36,7 @@ pytest = "^8.3.4"
 fastapi = {extras = ["testing"], version = "^0.115.7"}
 httpx = "^0.28.1"
 pytest-asyncio = "^0.25.2"
+ruff = "^0.3.4"
 
 [virtualenvs]
 in-project = true

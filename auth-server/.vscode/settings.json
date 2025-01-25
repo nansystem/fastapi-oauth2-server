@@ -1,11 +1,6 @@
 {
-    "python.testing.pytestEnabled": true,
-    "python.testing.unittestEnabled": false,
-    "python.testing.pytestArgs": [
-        "./auth-server/tests"
-    ],
+    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
     "python.analysis.extraPaths": [
-        "."
-    ],
-    "python.defaultInterpreterPath": "./auth-server/.venv/bin/python"
+        "${workspaceFolder}"
+    ]
 }
