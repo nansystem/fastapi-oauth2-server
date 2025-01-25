@@ -133,8 +133,17 @@ async def userinfo_endpoint(request: Request, db: Session = Depends(get_db)):
 
     token = auth_header.split(" ")[1]
     try:
-        token_data = OAuthService.validate_token(token)
+        # profileスコープの検証を追加
+        token_data = OAuthService.validate_token(token, required_scope="profile")
         user = db.query(User).filter(User.id == token_data["user_id"]).first()
-        return {"user_id": user.id, "username": user.username}
+
+        response_data = {"user_id": user.id, "username": user.username}
+
+        # emailスコープがある場合のみメールアドレスを含める
+        token_scopes = set(token_data["scope"].split())
+        if "email" in token_scopes:
+            response_data["email"] = user.email
+
+        return response_data
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e))

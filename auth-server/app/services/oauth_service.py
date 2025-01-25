@@ -9,13 +9,14 @@ class OAuthService:
 
     @classmethod
     def generate_authorization_code(
-        cls, client_id: str, user_id: str, redirect_uri: str
+        cls, client_id: str, user_id: str, redirect_uri: str, scope: str
     ) -> str:
         code = secrets.token_urlsafe(32)
         cls._auth_codes[code] = {
             "client_id": client_id,
             "user_id": user_id,
             "redirect_uri": redirect_uri,
+            "scope": scope,
             "expires_at": datetime.now() + timedelta(minutes=10),
         }
         return code
@@ -40,6 +41,7 @@ class OAuthService:
         cls._tokens[token] = {
             "client_id": client_id,
             "user_id": code_data["user_id"],
+            "scope": code_data["scope"],
             "expires_at": datetime.now() + timedelta(hours=1),
         }
 
@@ -48,10 +50,23 @@ class OAuthService:
         return token
 
     @classmethod
-    def validate_token(cls, token: str) -> dict:
+    def validate_token(cls, token: str, required_scope: str = None) -> dict:
         token_data = cls._tokens.get(token)
         if not token_data:
             raise ValueError("Invalid token")
         if datetime.now() > token_data["expires_at"]:
             raise ValueError("Token expired")
-        return token_data
+
+        # スコープの検証
+        if required_scope:
+            token_scopes = set(token_data["scope"].split())
+            if required_scope not in token_scopes:
+                raise ValueError(
+                    f"Token does not have required scope: {required_scope}"
+                )
+
+        return {
+            "client_id": token_data["client_id"],
+            "user_id": token_data["user_id"],
+            "scope": token_data["scope"],
+        }
