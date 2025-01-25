@@ -20,6 +20,11 @@ dependencies = [
     "passlib[bcrypt] (>=1.7.4,<2.0.0)"
 ]
 
+[tool.poetry]
+package-mode = false
+packages = [
+    { include = "app" }
+]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
