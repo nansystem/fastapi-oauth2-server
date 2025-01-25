@@ -41,13 +41,7 @@ jobs:
     - name: Lint with Ruff
       run: poetry run ruff check .
 
-    - name: Debug paths
-      run: |
-        echo "Current directory: $(pwd)"
-        echo "Python Path:"
-        poetry run python -c "import sys; print('\n'.join(sys.path))"
-        echo "Directory structure:"
-        ls -R
-
     - name: Run tests
-      run: poetry run pytest -v
+      run: |
+        export PYTHONPATH=$(pwd)
+        poetry run pytest -v
