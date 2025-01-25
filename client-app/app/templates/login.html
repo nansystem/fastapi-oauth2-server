@@ -1,51 +1,33 @@
-<!DOCTYPE html>
-<html>
+{% extends "base.html" %}
 
-<head>
-    <title>ログイン画面</title>
-    <link rel="stylesheet" href="/static/style.css">
-</head>
+{% block content %}
+<h1 class="text-lg mb-4">ログイン方法を選択</h1>
 
-<body>
-    <div class="login-container">
-        <h1>ログイン</h1>
-        <form action="/login" method="post">
-            <div class="form-group">
+<div class="space-y-8">
+    <!-- OAuth2.0ログイン -->
+    <div>
+        <h2 class="text-base mb-2">Auth Serverアカウントでログイン</h2>
+        <a href="/auth/oauth" class="inline-block bg-blue-500 text-white px-4 py-2 rounded">
+            Auth Serverでログイン
+        </a>
+    </div>
+
+    <!-- ローカルアカウントログイン（実装予定） -->
+    <div class="opacity-50">
+        <h2 class="text-base mb-2">ローカルアカウントでログイン（準備中）</h2>
+        <form class="space-y-2" onsubmit="return false;">
+            <div>
                 <label for="username">ユーザー名:</label>
-                <input type="text" id="username" name="username" required>
+                <input type="text" id="username" disabled class="border p-1">
             </div>
-
-            <div class="form-group">
+            <div>
                 <label for="password">パスワード:</label>
-                <input type="password" id="password" name="password" required>
+                <input type="password" id="password" disabled class="border p-1">
             </div>
-
-            <button type="submit">ログイン</button>
+            <button disabled class="bg-gray-500 text-white px-4 py-2 rounded">
+                ログイン（準備中）
+            </button>
         </form>
     </div>
-</body>
-
-</html>
-
-<script>
-    async function handleLogin() {
-        const username = document.getElementById('username').value;
-        const password = document.getElementById('password').value;
-
-        try {
-            const response = await fetch('/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ username, password })
-            });
-
-            if (!response.ok) throw new Error('Login failed');
-
-            window.location.href = '/dashboard';
-        } catch (error) {
-            document.getElementById('error-message').textContent = error.message;
-        }
-    }
-</script>
+</div>
+{% endblock %}

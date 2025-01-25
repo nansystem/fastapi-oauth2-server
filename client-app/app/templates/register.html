@@ -1,32 +1,48 @@
-<!DOCTYPE html>
-<html>
+{% extends "base.html" %}
 
-<head>
-    <title>ユーザー登録</title>
-    <link rel="stylesheet" href="/static/style.css">
-</head>
+{% block content %}
+<div class="max-w-md mx-auto mt-8">
+    <h1 class="text-2xl font-bold mb-4">ユーザー登録</h1>
 
-<body>
-    <div class="register-container">
-        <h1>新規登録</h1>
-        {% if error %}
-        <div class="error-message">{{ error }}</div>
+    <form method="post" action="/auth/register" class="space-y-4">
+        <div>
+            <label for="display_name" class="block mb-1">表示名</label>
+            <input type="text" id="display_name" name="display_name" required class="w-full px-3 py-2 border rounded" />
+        </div>
+
+        {% if oauth_provider %}
+        {# OAuth認証後の登録 #}
+        <input type="hidden" name="oauth_provider" value="{{ oauth_provider }}" />
+        <input type="hidden" name="oauth_sub" value="{{ oauth_sub }}" />
+        <input type="hidden" name="oauth_username" value="{{ oauth_username }}" />
+        <p class="text-gray-600">
+            認可サーバーのアカウント ({{ oauth_username }}) と連携して登録します
+        </p>
+        {% else %}
+        {# 通常の登録 #}
+        <div>
+            <label for="email" class="block mb-1">メールアドレス</label>
+            <input type="email" id="email" name="email" required class="w-full px-3 py-2 border rounded" />
+        </div>
+        <div>
+            <label for="password" class="block mb-1">パスワード</label>
+            <input type="password" id="password" name="password" required class="w-full px-3 py-2 border rounded" />
+        </div>
         {% endif %}
-        <form action="/register" method="post">
-            <div class="form-group">
-                <label for="username">ユーザー名:</label>
-                <input type="text" id="username" name="username" required>
-            </div>
 
-            <div class="form-group">
-                <label for="password">パスワード:</label>
-                <input type="password" id="password" name="password" required>
-            </div>
+        {% if error %}
+        <div class="text-red-600">{{ error }}</div>
+        {% endif %}
 
-            <button type="submit">登録</button>
-        </form>
-        <p>既にアカウントをお持ちですか？ <a href="/">ログインはこちら</a></p>
+        <button type="submit" class="w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">
+            登録
+        </button>
+    </form>
+
+    <div class="mt-4 text-center">
+        <a href="/auth/login" class="text-blue-500 hover:underline">
+            既にアカウントをお持ちの方はこちら
+        </a>
     </div>
-</body>
-
-</html>
+</div>
+{% endblock %}

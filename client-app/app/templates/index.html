@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1 class="text-2xl font-bold mb-4">Client App</h1>
+
+{% if user %}
+<div class="mb-4">
+    <p>ようこそ、{{ user.username }} さん</p>
+    <a href="/auth/logout" class="text-blue-500 hover:underline">ログアウト</a>
+</div>
+{% else %}
+<div class="mb-4">
+    <p>クライアントサービスを利用するにはログインまたは新規登録が必要です</p>
+    <div class="mt-2">
+        <a href="/auth/login" class="text-blue-500 hover:underline mr-4">ログイン</a>
+        <a href="/auth/register" class="text-blue-500 hover:underline">新規登録</a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
