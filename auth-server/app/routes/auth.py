@@ -14,15 +14,18 @@ router = APIRouter(tags=["認証"])
 @router.get("/")
 async def index(request: Request):
     return templates.TemplateResponse(
-        "index.html", {"request": request, "user": request.session.get("user")}
+        request=request,
+        name="index.html",
+        context={"request": request, "user": request.session.get("user")},
     )
 
 
 @router.get("/login")
 async def login_page(request: Request):
     return templates.TemplateResponse(
-        "login.html",
-        {"request": request, "next": request.query_params.get("next", "/")},
+        request=request,
+        name="login.html",
+        context={"request": request, "next": request.query_params.get("next", "/")},
     )
 
 
@@ -37,8 +40,9 @@ async def login(
     user = db.query(User).filter(User.username == username).first()
     if not user or not verify_password(password, user.password):
         return templates.TemplateResponse(
-            "login.html",
-            {
+            request=request,
+            name="login.html",
+            context={
                 "request": request,
                 "error": "ユーザー名またはパスワードが正しくありません",
             },
@@ -67,7 +71,9 @@ async def login(
 
 @router.get("/register")
 async def register_page(request: Request):
-    return templates.TemplateResponse("register.html", {"request": request})
+    return templates.TemplateResponse(
+        request=request, name="register.html", context={"request": request}
+    )
 
 
 @router.post("/register")
@@ -79,8 +85,9 @@ async def register(
 ):
     if db.query(User).filter(User.username == username).first():
         return templates.TemplateResponse(
-            "register.html",
-            {"request": request, "error": "このユーザー名は既に使用されています"},
+            request=request,
+            name="register.html",
+            context={"request": request, "error": "このユーザー名は既に使用されています"},
             status_code=400,
         )
 
