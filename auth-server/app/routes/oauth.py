@@ -73,8 +73,9 @@ async def authorize(
     request.session["csrf_token"] = csrf_token
 
     return templates.TemplateResponse(
-        "consent.html",
-        {
+        request=request,
+        name="consent.html",
+        context={
             "request": request,
             "csrf_token": csrf_token,
             "scope": scope,  # 同意画面での表示用にscopeのみ渡す
@@ -201,8 +202,9 @@ async def oauth_callback(
 ):
     if error == "access_denied":
         return templates.TemplateResponse(
-            "error.html",
-            {
+            request=request,
+            name="error.html",
+            context={
                 "request": request,
                 "error": "アプリケーションの認可が拒否されました",
                 "message": "サービスを利用するには認可を許可する必要があります",

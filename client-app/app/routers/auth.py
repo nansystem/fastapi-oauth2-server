@@ -17,14 +17,14 @@ templates = Jinja2Templates(directory="app/templates")
 # 認証関連ルートの定義
 @router.get("/", response_class=HTMLResponse)
 async def show_login_page(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="login.html")
 
 
 @router.get("/dashboard", response_class=HTMLResponse)
 async def show_dashboard(request: Request):
     if "user" not in request.session:
         return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
-    return templates.TemplateResponse("dashboard.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="dashboard.html")
 
 
 @router.post("/login")
@@ -49,7 +49,7 @@ async def handle_login(
 
 @router.get("/register", response_class=HTMLResponse)
 async def show_register_page(request: Request):
-    return templates.TemplateResponse("register.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="register.html")
 
 
 @router.post("/register")
@@ -64,8 +64,9 @@ async def handle_register(
     )
     if existing_user:
         return templates.TemplateResponse(
-            "register.html",
-            {"request": request, "error": "このユーザー名は既に使用されています"},
+            request=request,
+            name="register.html",
+            context={"request": request, "error": "このユーザー名は既に使用されています"},
         )
 
     hashed_password = get_password_hash(password)

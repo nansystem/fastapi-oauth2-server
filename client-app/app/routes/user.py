@@ -9,4 +9,8 @@ templates = Jinja2Templates(directory="app/templates")
 @router.get("/")
 async def home(request: Request):
     user = request.session.get("user")
-    return templates.TemplateResponse("index.html", {"request": request, "user": user})
+    return templates.TemplateResponse(
+        request=request,
+        name="index.html",
+        context={"request": request, "user": user},
+    )
